@@ -72,24 +72,79 @@
     max-width: 100%;
 }
 
+/* Inline editing styles */
+.editable-cell {
+    position: relative;
+}
+
+.editable-cell .edit-input {
+    width: 100%;
+    padding: 4px 6px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-family: Consolas, Monaco, monospace;
+    font-size: 12px;
+}
+
+.editable-cell .edit-input:focus {
+    border-color: #0073aa;
+    box-shadow: 0 0 0 1px #0073aa;
+    outline: none;
+}
+
+.wp-list-table tr.editing {
+    background-color: #f9f9f9;
+}
+
+.wp-list-table tr.updated {
+    background-color: #d4edda;
+    transition: background-color 0.3s ease;
+}
+
+.row-actions-wrapper {
+    white-space: nowrap;
+}
+
+.edit-actions .button {
+    margin-right: 5px;
+}
+
+.edit-btn {
+    margin-right: 5px;
+}
+
 /* Responsive adjustments */
 @media screen and (max-width: 782px) {
     .sri-card {
         padding: 15px;
         margin: 10px 0;
     }
-    
+
     .wp-list-table code {
         font-size: 11px;
         word-break: break-all;
     }
-    
+
     .regular-text {
         width: 100%;
     }
-    
+
     .form-table th {
         width: auto;
         padding-right: 10px;
+    }
+
+    .editable-cell .edit-input {
+        font-size: 11px;
+    }
+
+    .row-actions-wrapper {
+        white-space: normal;
+    }
+
+    .edit-actions .button,
+    .normal-actions .button {
+        margin: 2px;
+        font-size: 11px;
     }
 }

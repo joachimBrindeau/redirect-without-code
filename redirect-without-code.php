@@ -71,6 +71,7 @@ class RedirectWithoutCode {
             add_action('admin_post_import_redirects', array($this, 'handle_import'));
             add_action('admin_post_add_redirect', array($this, 'handle_add_redirect'));
             add_action('admin_enqueue_scripts', array($this, 'admin_scripts'));
+            add_action('wp_ajax_rwc_update_redirect', array($this, 'handle_update_redirect'));
         }
         
         // Frontend redirect handling
@@ -159,13 +160,20 @@ class RedirectWithoutCode {
         if ('tools_page_redirect-without-code' !== $hook) {
             return;
         }
-        
+
         wp_enqueue_style(
             'rwc-admin-style',
             RWC_PLUGIN_URL . 'assets/admin.css',
             array(),
             RWC_VERSION
         );
+
+        // Enqueue jQuery and localize ajaxurl
+        wp_enqueue_script('jquery');
+        wp_localize_script('jquery', 'rwc_ajax', array(
+            'ajaxurl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('rwc_update_redirect')
+        ));
     }
     
     /**
@@ -440,6 +448,75 @@ class RedirectWithoutCode {
             wp_redirect(admin_url('tools.php?page=redirect-without-code&error=database'));
         }
         exit;
+    }
+
+    /**
+     * Handle AJAX redirect update
+     */
+    public function handle_update_redirect() {
+        // Check if it's a POST request
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            wp_send_json_error(__('Invalid request method.', 'redirect-without-code'));
+            return;
+        }
+
+        // Security checks
+        if (!current_user_can('manage_options') || !wp_verify_nonce($_POST['_wpnonce'], 'rwc_update_redirect')) {
+            wp_send_json_error(__('Unauthorized access.', 'redirect-without-code'));
+            return;
+        }
+
+        $id = intval($_POST['id']);
+        $old_path = sanitize_text_field($_POST['old_path']);
+        $new_path = sanitize_text_field($_POST['new_path']);
+
+        // Sanitize and format paths
+        $old_path = $this->sanitize_path($old_path);
+        $new_path = $this->sanitize_path($new_path);
+
+        // Validate inputs
+        if (empty($old_path) || empty($new_path)) {
+            wp_send_json_error(__('Both old path and new path are required.', 'redirect-without-code'));
+            return;
+        }
+
+        if ($old_path === $new_path) {
+            wp_send_json_error(__('Old path and new path cannot be the same.', 'redirect-without-code'));
+            return;
+        }
+
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'sitemap_redirects';
+
+        // Check for duplicates (excluding current record)
+        $exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM $table_name WHERE old_path = %s AND id != %d",
+            $old_path,
+            $id
+        ));
+
+        if ($exists) {
+            wp_send_json_error(__('A redirect for this old path already exists.', 'redirect-without-code'));
+            return;
+        }
+
+        // Update redirect
+        $result = $wpdb->update(
+            $table_name,
+            array(
+                'old_path' => $old_path,
+                'new_path' => $new_path
+            ),
+            array('id' => $id),
+            array('%s', '%s'),
+            array('%d')
+        );
+
+        if ($result !== false) {
+            wp_send_json_success(__('Redirect updated successfully.', 'redirect-without-code'));
+        } else {
+            wp_send_json_error(__('Database error occurred while updating redirect.', 'redirect-without-code'));
+        }
     }
 
     /**

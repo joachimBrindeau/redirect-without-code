@@ -1,0 +1,303 @@
+<?php
+/**
+ * Plugin Name: Redirect Without Code
+ * Plugin URI: https://github.com/joachimBrindeau/redirect-without-code
+ * Description: Import CSV files and create 301 redirects without writing any code. Perfect for website migrations and URL structure changes.
+ * Version: 1.0.0
+ * Requires at least: 5.0
+ * Requires PHP: 7.4
+ * Author: Joachim Brindeau
+ * Author URI: https://github.com/joachimBrindeau
+ * License: GPL v2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ * Text Domain: redirect-without-code
+ * Domain Path: /languages
+ * Network: false
+ *
+ * @package RedirectWithoutCode
+ */
+
+// Prevent direct access
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+// Define plugin constants
+define('RWC_VERSION', '1.0.0');
+define('RWC_PLUGIN_DIR', plugin_dir_path(__FILE__));
+define('RWC_PLUGIN_URL', plugin_dir_url(__FILE__));
+define('RWC_PLUGIN_FILE', __FILE__);
+
+/**
+ * Main plugin class
+ */
+class RedirectWithoutCode {
+    
+    /**
+     * Single instance of the plugin
+     */
+    private static $instance = null;
+    
+    /**
+     * Get single instance
+     */
+    public static function get_instance() {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+    
+    /**
+     * Constructor
+     */
+    private function __construct() {
+        add_action('init', array($this, 'init'));
+        register_activation_hook(__FILE__, array($this, 'activate'));
+        register_deactivation_hook(__FILE__, array($this, 'deactivate'));
+        register_uninstall_hook(__FILE__, array('RedirectWithoutCode', 'uninstall'));
+    }
+    
+    /**
+     * Initialize plugin
+     */
+    public function init() {
+        // Load text domain for translations
+        load_plugin_textdomain('redirect-without-code', false, dirname(plugin_basename(__FILE__)) . '/languages');
+        
+        // Admin functionality
+        if (is_admin()) {
+            add_action('admin_menu', array($this, 'add_admin_menu'));
+            add_action('admin_post_import_redirects', array($this, 'handle_import'));
+            add_action('admin_post_add_redirect', array($this, 'handle_add_redirect'));
+            add_action('admin_enqueue_scripts', array($this, 'admin_scripts'));
+        }
+        
+        // Frontend redirect handling
+        add_action('template_redirect', array($this, 'handle_redirects'));
+    }
+    
+    /**
+     * Plugin activation
+     */
+    public function activate() {
+        $this->create_redirects_table();
+        
+        // Set default options
+        add_option('rwc_version', RWC_VERSION);
+        add_option('rwc_redirect_count', 0);
+        
+        // Flush rewrite rules
+        flush_rewrite_rules();
+    }
+    
+    /**
+     * Plugin deactivation
+     */
+    public function deactivate() {
+        // Clean up if needed
+        flush_rewrite_rules();
+    }
+    
+    /**
+     * Plugin uninstall
+     */
+    public static function uninstall() {
+        global $wpdb;
+        
+        // Remove database table
+        $table_name = $wpdb->prefix. 'sitemap_redirects';
+        $wpdb->query("DROP TABLE IF EXISTS $table_name");
+        
+        // Remove options
+        delete_option('rwc_version');
+        delete_option('rwc_redirect_count');
+    }
+    
+    /**
+     * Create redirects database table
+     */
+    public function create_redirects_table() {
+        global $wpdb;
+        
+        $table_name = $wpdb->prefix. 'sitemap_redirects';
+        $charset_collate = $wpdb->get_charset_collate();
+        
+        $sql = "CREATE TABLE $table_name (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            old_path varchar(500) NOT NULL,
+            new_path varchar(500) NOT NULL,
+            status varchar(20) DEFAULT '301',
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            active tinyint(1) DEFAULT 1,
+            PRIMARY KEY (id),
+            UNIQUE KEY old_path (old_path),
+            KEY active (active)
+        ) $charset_collate;";
+        
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
+    }
+    
+    /**
+     * Add admin menu
+     */
+    public function add_admin_menu() {
+        add_management_page(
+            __('Redirect Without Code', 'redirect-without-code'),
+            __('Redirect Without Code', 'redirect-without-code'),
+            'manage_options',
+            'redirect-without-code',
+            array($this, 'admin_page')
+        );
+    }
+    
+    /**
+     * Enqueue admin scripts and styles
+     */
+    public function admin_scripts($hook) {
+        if ('tools_page_redirect-without-code' !== $hook) {
+            return;
+        }
+        
+        wp_enqueue_style(
+            'rwc-admin-style',
+            RWC_PLUGIN_URL . 'assets/admin.css',
+            array(),
+            RWC_VERSION
+        );
+    }
+    
+    /**
+     * Admin page content
+     */
+    public function admin_page() {
+        // Security check
+        if (!current_user_can('manage_options')) {
+            wp_die(__('You do not have sufficient permissions to access this page.', 'redirect-without-code'));
+        }
+        
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'sitemap_redirects';
+        
+        // Handle actions
+        $this->handle_admin_actions($table_name);
+        
+        // Get redirects data
+        $redirects = $wpdb->get_results("SELECT * FROM $table_name ORDER BY created_at DESC");
+        $total_redirects = count($redirects);
+        $active_redirects = count(array_filter($redirects, function($r) { return $r->active; }));
+        
+        // Include admin template
+        include RWC_PLUGIN_DIR . 'templates/admin-page.php';
+    }
+    
+    /**
+     * Handle admin actions (delete, toggle)
+     */
+    private function handle_admin_actions($table_name) {
+        global $wpdb;
+        
+        // Handle delete action
+        if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id']) && wp_verify_nonce($_GET['_wpnonce'], 'delete_redirect')) {
+            $deleted = $wpdb->delete($table_name, array('id' => intval($_GET['id'])));
+            if ($deleted) {
+                add_action('admin_notices', function() {
+                    echo '<div class="notice notice-success is-dismissible"><p>' . __('Redirect deleted successfully!', 'redirect-without-code') . '</p></div>';
+                });
+            }
+        }
+        
+        // Handle toggle action
+        if (isset($_GET['action']) && $_GET['action'] === 'toggle' && isset($_GET['id']) && wp_verify_nonce($_GET['_wpnonce'], 'toggle_redirect')) {
+            $current = $wpdb->get_var($wpdb->prepare("SELECT active FROM $table_name WHERE id = %d", intval($_GET['id'])));
+            $new_status = $current ? 0 : 1;
+            $updated = $wpdb->update($table_name, array('active' => $new_status), array('id' => intval($_GET['id'])));
+            if ($updated !== false) {
+                add_action('admin_notices', function() {
+                    echo '<div class="notice notice-success is-dismissible"><p>' . __('Redirect status updated!', 'redirect-without-code') . '</p></div>';
+                });
+            }
+        }
+        
+        // Handle success/error messages
+        $this->handle_admin_messages();
+    }
+    
+    /**
+     * Handle admin messages
+     */
+    private function handle_admin_messages() {
+        if (isset($_GET['added'])) {
+            add_action('admin_notices', function() {
+                echo '<div class="notice notice-success is-dismissible"><p>' . __('Redirect added successfully!', 'redirect-without-code') . '</p></div>';
+            });
+        }
+        
+        if (isset($_GET['imported']) && isset($_GET['skipped'])) {
+            $imported = intval($_GET['imported']);
+            $skipped = intval($_GET['skipped']);
+            add_action('admin_notices', function() use ($imported, $skipped) {
+                echo '<div class="notice notice-success is-dismissible"><p>' . 
+                     sprintf(__('Import completed! Imported: %d redirects, Skipped: %d rows', 'redirect-without-code'), $imported, $skipped) . 
+                     '</p></div>';
+            });
+        }
+        
+        if (isset($_GET['error'])) {
+            $error_messages = array(
+                'upload' => __('File upload failed.', 'redirect-without-code'),
+                'read' => __('Could not read the uploaded file.', 'redirect-without-code'),
+                'empty' => __('Both old path and new path are required.', 'redirect-without-code'),
+                'same' => __('Old path and new path cannot be the same.', 'redirect-without-code'),
+                'duplicate' => __('A redirect for this old path already exists.', 'redirect-without-code'),
+                'database' => __('Database error occurred while adding redirect.', 'redirect-without-code')
+            );
+            
+            $error = sanitize_key($_GET['error']);
+            if (isset($error_messages[$error])) {
+                add_action('admin_notices', function() use ($error_messages, $error) {
+                    echo '<div class="notice notice-error is-dismissible"><p>' . 
+                         __('Error: ', 'redirect-without-code') . $error_messages[$error] . 
+                         '</p></div>';
+                });
+            }
+        }
+    }
+    
+    /**
+     * Handle CSV import
+     */
+    public function handle_import() {
+        // Security checks
+        if (!current_user_can('manage_options') || !wp_verify_nonce($_POST['_wpnonce'], 'import_redirects_nonce')) {
+            wp_die(__('Unauthorized access.', 'redirect-without-code'));
+        }
+        
+        // Validate file upload
+        if (!isset($_FILES['csv_file']) || $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK) {
+            wp_redirect(admin_url('tools.php?page=redirect-without-code&error=upload'));
+            exit;
+        }
+        
+        // Validate file type
+        $file_info = pathinfo($_FILES['csv_file']['name']);
+        if (!isset($file_info['extension']) || strtolower($file_info['extension']) !== 'csv') {
+            wp_redirect(admin_url('tools.php?page=redirect-without-code&error=filetype'));
+            exit;
+        }
+        
+        global $wpdb;
+        $table_name = $wpdb->prefix. 'sitemap_redirects';
+        
+        // Clear existing if requested
+        if (isset($_POST['clear_existing'])) {
+            $wpdb->query("TRUNCATE TABLE $table_name");
+        }
+        
+        // Process CSV file
+        $result = $this->process_csv_file($_FILES['csv_file']['tmp_name'], $table_name);
+        
+        wp_redirect(admin_url("tools.php?page=redirect-without-code&imported={$result['imported']}&skipped={$result['skipped']}"));
+        exit;
+    }

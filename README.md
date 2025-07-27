@@ -56,7 +56,7 @@ A WordPress plugin that imports CSV files and creates 301 redirects without writ
 
 The plugin works with any CSV file that contains these **required columns**:
 - `path_old` - The old URL path to redirect from
-- Fanew_path` - The new URL path to redirect to  
+- `path_new` - The new URL path to redirect to
 - `status` - Must be "301" for the row to be imported
 
 **Flexible formats supported:**

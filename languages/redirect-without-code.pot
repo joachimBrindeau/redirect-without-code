@@ -1,0 +1,198 @@
+# Copyright (C) 2024 Redirect Without Code
+# This file is distributed under the same license as the Redirect Without Code package.
+msgid ""
+msgstr ""
+"Project-Id-Version: Redirect Without Code 1.0.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/redirect-without-code\n"
+"POT-Creation-Date: 2024-01-01 12:00+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2024-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+
+#: redirect-without-code.php:120
+msgid "Redirect Without Code"
+msgstr ""
+
+#: redirect-without-code.php:145
+msgid "You do not have sufficient permissions to access this page."
+msgstr ""
+
+#: redirect-without-code.php:167
+msgid "Redirect deleted successfully!"
+msgstr ""
+
+#: redirect-without-code.php:177
+msgid "Redirect status updated!"
+msgstr ""
+
+#: redirect-without-code.php:186
+msgid "Redirect added successfully!"
+msgstr ""
+
+#: redirect-without-code.php:192
+#, php-format
+msgid "Import completed! Imported: %d redirects, Skipped: %d rows"
+msgstr ""
+
+#: redirect-without-code.php:200
+msgid "File upload failed."
+msgstr ""
+
+#: redirect-without-code.php:201
+msgid "Could not read the uploaded file."
+msgstr ""
+
+#: redirect-without-code.php:202
+msgid "Both old path and new path are required."
+msgstr ""
+
+#: redirect-without-code.php:203
+msgid "Old path and new path cannot be the same."
+msgstr ""
+
+#: redirect-without-code.php:204
+msgid "A redirect for this old path already exists."
+msgstr ""
+
+#: redirect-without-code.php:205
+msgid "Database error occurred while adding redirect."
+msgstr ""
+
+#: redirect-without-code.php:209
+msgid "Error: "
+msgstr ""
+
+#: redirect-without-code.php:220
+msgid "Unauthorized access."
+msgstr ""
+
+#: redirect-without-code.php:340
+msgid "Unauthorized access."
+msgstr ""
+
+#: templates/admin-page.php:14
+msgid "Redirect Without Code"
+msgstr ""
+
+#: templates/admin-page.php:17
+msgid "Add Single Redirect"
+msgstr ""
+
+#: templates/admin-page.php:24
+msgid "Old Path"
+msgstr ""
+
+#: templates/admin-page.php:27
+msgid "The old URL path that should redirect (e.g., /old-page)"
+msgstr ""
+
+#: templates/admin-page.php:33
+msgid "New Path"
+msgstr ""
+
+#: templates/admin-page.php:36
+msgid "The new URL path to redirect to (e.g., /new-page)"
+msgstr ""
+
+#: templates/admin-page.php:44
+msgid "Add Redirect"
+msgstr ""
+
+#: templates/admin-page.php:49
+msgid "Import CSV File"
+msgstr ""
+
+#: templates/admin-page.php:50
+msgid "Upload your CSV file. Must contain columns: path_old, path_new, status. Only rows with status \"301\" will be imported."
+msgstr ""
+
+#: templates/admin-page.php:58
+msgid "CSV File"
+msgstr ""
+
+#: templates/admin-page.php:64
+msgid "Required columns: path_old, path_new, status"
+msgstr ""
+
+#: templates/admin-page.php:65
+msgid "Examples:"
+msgstr ""
+
+#: templates/admin-page.php:71
+msgid "Options"
+msgstr ""
+
+#: templates/admin-page.php:75
+msgid "Clear existing redirects before import"
+msgstr ""
+
+#: templates/admin-page.php:78
+msgid "Skip duplicate old paths"
+msgstr ""
+
+#: templates/admin-page.php:84
+msgid "Import Redirects"
+msgstr ""
+
+#: templates/admin-page.php:90
+#, php-format
+msgid "Current Redirects (%d/%d active)"
+msgstr ""
+
+#: templates/admin-page.php:96
+msgid "No redirects found. Import a CSV file or add redirects manually to get started."
+msgstr ""
+
+#: templates/admin-page.php:100
+#, php-format
+msgid "%s item"
+msgid_plural "%s items"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/admin-page.php:108
+msgid "Old Path"
+msgstr ""
+
+#: templates/admin-page.php:109
+msgid "New Path"
+msgstr ""
+
+#: templates/admin-page.php:110
+msgid "Status"
+msgstr ""
+
+#: templates/admin-page.php:111
+msgid "Created"
+msgstr ""
+
+#: templates/admin-page.php:112
+msgid "Actions"
+msgstr ""
+
+#: templates/admin-page.php:121
+msgid "Active"
+msgstr ""
+
+#: templates/admin-page.php:121
+msgid "Inactive"
+msgstr ""
+
+#: templates/admin-page.php:129
+msgid "Disable"
+msgstr ""
+
+#: templates/admin-page.php:129
+msgid "Enable"
+msgstr ""
+
+#: templates/admin-page.php:136
+msgid "Are you sure you want to delete this redirect?"
+msgstr ""
+
+#: templates/admin-page.php:137
+msgid "Delete"
+msgstr ""

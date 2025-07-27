@@ -1,0 +1,95 @@
+/**
+ * Admin styles for Redirect Without Code
+ *
+ * @package RedirectWithoutCode
+ */
+
+.sri-card {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+    padding: 20px;
+    margin: 20px 0;
+    width: 100%;
+    max-width: none;
+    box-sizing: border-box;
+}
+
+.sri-card h2 {
+    margin-top: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.status-active {
+    color: #46b450;
+    font-weight: 600;
+}
+
+.status-inactive {
+    color: #dc3232;
+    font-weight: 600;
+}
+
+.wp-list-table tr.inactive {
+    opacity: 0.6;
+}
+
+.wp-list-table code {
+    background: #f1f1f1;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.form-table th {
+    width: 150px;
+}
+
+.button-link-delete {
+    color: #a00 !important;
+}
+
+.button-link-delete:hover {
+    color: #dc3232 !important;
+}
+
+/* Full width layout */
+.wrap {
+    max-width: none;
+}
+
+.sri-card .form-table {
+    width: 100%;
+}
+
+.sri-card .wp-list-table {
+    width: 100%;
+}
+
+.regular-text {
+    width: 400px;
+    max-width: 100%;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 782px) {
+    .sri-card {
+        padding: 15px;
+        margin: 10px 0;
+    }
+    
+    .wp-list-table code {
+        font-size: 11px;
+        word-break: break-all;
+    }
+    
+    .regular-text {
+        width: 100%;
+    }
+    
+    .form-table th {
+        width: auto;
+        padding-right: 10px;
+    }
+}

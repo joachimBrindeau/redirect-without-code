@@ -301,3 +301,196 @@ class RedirectWithoutCode {
         wp_redirect(admin_url("tools.php?page=redirect-without-code&imported={$result['imported']}&skipped={$result['skipped']}"));
         exit;
     }
+
+    /**
+     * Process CSV file
+     */
+    private function process_csv_file($file_path, $table_name) {
+        global $wpdb;
+
+        $handle = fopen($file_path, 'r');
+        if (!$handle) {
+            return array('imported' => 0, 'skipped' => 0);
+        }
+
+        // Read header row to find column positions
+        $header = fgetcsv($handle);
+        if (!$header) {
+            fclose($handle);
+            return array('imported' => 0, 'skipped' => 0);
+        }
+
+        // Find required column positions (case-insensitive)
+        $header = array_map('strtolower', array_map('trim', $header));
+        $path_old_col = array_search('path_old', $header);
+        $path_new_col = array_search('path_new', $header);
+        $status_col = array_search('status', $header);
+
+        // Check if all required columns exist
+        if ($path_old_col === false || $path_new_col === false || $status_col === false) {
+            fclose($handle);
+            return array('imported' => 0, 'skipped' => 0);
+        }
+
+        $imported = 0;
+        $skipped = 0;
+        $skip_duplicates = isset($_POST['skip_duplicates']);
+
+        while (($data = fgetcsv($handle)) !== FALSE) {
+            // Extract required columns by position
+            $path_old = isset($data[$path_old_col]) ? trim($data[$path_old_col]) : '';
+            $path_new = isset($data[$path_new_col]) ? trim($data[$path_new_col]) : '';
+            $status = isset($data[$status_col]) ? trim($data[$status_col]) : '';
+
+            // Only process 301 redirects
+            if ($status !== '301' || empty($path_old) || empty($path_new)) {
+                $skipped++;
+                continue;
+            }
+
+            // Sanitize and format paths
+            $path_old = $this->sanitize_path($path_old);
+            $path_new = $this->sanitize_path($path_new);
+
+            // Skip duplicates if requested
+            if ($skip_duplicates) {
+                $exists = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table_name WHERE old_path = %s", $path_old));
+                if ($exists) {
+                    $skipped++;
+                    continue;
+                }
+            }
+
+            // Insert redirect
+            $result = $wpdb->insert(
+                $table_name,
+                array(
+                    'old_path' => $path_old,
+                    'new_path' => $path_new,
+                    'status' => '301',
+                    'active' => 1
+                ),
+                array('%s', '%s', '%s', '%d')
+            );
+
+            if ($result) {
+                $imported++;
+            } else {
+                $skipped++;
+            }
+        }
+
+        fclose($handle);
+
+        return array('imported' => $imported, 'skipped' => $skipped);
+    }
+
+    /**
+     * Handle manual redirect addition
+     */
+    public function handle_add_redirect() {
+        // Security checks
+        if (!current_user_can('manage_options') || !wp_verify_nonce($_POST['_wpnonce'], 'add_redirect_nonce')) {
+            wp_die(__('Unauthorized access.', 'redirect-without-code'));
+        }
+
+        $old_path = sanitize_text_field($_POST['old_path']);
+        $new_path = sanitize_text_field($_POST['new_path']);
+
+        // Sanitize and format paths
+        $old_path = $this->sanitize_path($old_path);
+        $new_path = $this->sanitize_path($new_path);
+
+        // Validate inputs
+        if (empty($old_path) || empty($new_path)) {
+            wp_redirect(admin_url('tools.php?page=redirect-without-code&error=empty'));
+            exit;
+        }
+
+        if ($old_path === $new_path) {
+            wp_redirect(admin_url('tools.php?page=redirect-without-code&error=same'));
+            exit;
+        }
+
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'sitemap_redirects';
+
+        // Check for duplicates
+        $exists = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table_name WHERE old_path = %s", $old_path));
+        if ($exists) {
+            wp_redirect(admin_url('tools.php?page=redirect-without-code&error=duplicate'));
+            exit;
+        }
+
+        // Insert redirect
+        $result = $wpdb->insert(
+            $table_name,
+            array(
+                'old_path' => $old_path,
+                'new_path' => $new_path,
+                'status' => '301',
+                'active' => 1
+            ),
+            array('%s', '%s', '%s', '%d')
+        );
+
+        if ($result) {
+            wp_redirect(admin_url('tools.php?page=redirect-without-code&added=1'));
+        } else {
+            wp_redirect(admin_url('tools.php?page=redirect-without-code&error=database'));
+        }
+        exit;
+    }
+
+    /**
+     * Sanitize and format URL path
+     */
+    private function sanitize_path($path) {
+        $path = trim($path);
+
+        // Ensure path starts with /
+        if (!empty($path) && $path[0] !== '/') {
+            $path = '/' . $path;
+        }
+
+        // Remove trailing slash except for root
+        $path = rtrim($path, '/');
+        if (empty($path)) {
+            $path = '/';
+        }
+
+        return $path;
+    }
+
+    /**
+     * Handle frontend redirects
+     */
+    public function handle_redirects() {
+        // Skip admin pages
+        if (is_admin()) {
+            return;
+        }
+
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'sitemap_redirects';
+
+        // Get current path
+        $current_path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+        $current_path = $this->sanitize_path($current_path);
+
+        // Look for redirect
+        $redirect = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_name WHERE old_path = %s AND active = 1 LIMIT 1",
+            $current_path
+        ));
+
+        if ($redirect) {
+            $new_url = home_url($redirect->new_path);
+            wp_redirect($new_url, 301);
+            exit;
+        }
+    }
+}
+
+// Initialize plugin
+RedirectWithoutCode::get_instance();
